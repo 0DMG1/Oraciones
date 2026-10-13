@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Remarcar Letras - Minjares</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="game-container">
+        <h2>Remarca la letra</h2>
+        
+        <!-- Contenedor relativo para encimar el texto y el canvas -->
+        <div style="position: relative; width: 300px; height: 300px; margin: 20px auto;">
+            
+            <!-- Letra de guía (fondo gris clarito) -->
+            <div id="letra-guia" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; font-size: 250px; color: #e0e0e0; display: flex; align-items: center; justify-content: center; z-index: 1; user-select: none; pointer-events: none;">p</div>
+            
+            <!-- Pizarra transparente donde dibujará el niño -->
+            <canvas id="pizarra" width="300" height="300" style="position: absolute; top: 0; left: 0; z-index: 2; border: 4px dashed #ccc; border-radius: 15px; cursor: crosshair; touch-action: none;"></canvas>
+            
+        </div>
+
+        <div style="margin-top: 20px;">
+            <button id="btn-limpiar" class="btn-icon">Borrar 🧹</button>
+            <button id="btn-siguiente" class="btn-accion">Siguiente Letra ➡️</button>
+        </div>
+    </div>
+    <!-- Botón para regresar -->
+    <div style="text-align: center;">
+        <a href="index.html" class="btn-navegacion">📝 Ir a Formar Oraciones</a>
+    </div>
+
+    <script src="trazos.js"></script>
+</body>
+</html>

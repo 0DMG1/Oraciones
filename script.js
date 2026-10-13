@@ -1,6 +1,6 @@
 // Agregamos las oraciones usando el vocabulario exacto del documento "MÉTODO INTEGRAL MINJARES-TARJETERO"
 // Oraciones generadas estrictamente con el vocabulario del Tarjetero Minjares 1° A
-const niveles = [
+var niveles = [
     // Básicas de los personajes
     "La nena Lulú",
     "El papá oso",
@@ -108,6 +108,9 @@ btnEscuchar.onclick = () => {
     utterance.lang = 'es-MX';
     speechSynthesis.speak(utterance);
 };
+
+// Desordenamos las oraciones para que cada partida sea única
+niveles = desordenarArreglo(niveles);
 
 // Iniciar juego
 cargarNivel();
