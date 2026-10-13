@@ -117,3 +117,119 @@ body {
     cursor: not-allowed;
     transform: none;
 }
+
+/* Estilos para el botón de Configuración */
+.btn-engrane {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    font-size: 28px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.3s;
+}
+.btn-engrane:hover {
+    transform: rotate(90deg);
+}
+
+/* Modales (Ventanas emergentes) */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background-color: rgba(0,0,0,0.6);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+}
+.modal-contenido {
+    background: white;
+    padding: 25px;
+    border-radius: 12px;
+    text-align: center;
+    width: 90%;
+    max-width: 400px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+.config-contenido {
+    max-width: 500px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+/* Aplicamos el diseño ancho SOLO a los campos de texto y números */
+.modal-contenido input[type="text"],
+.modal-contenido input[type="password"],
+.modal-contenido input[type="number"] {
+    display: block;
+    width: 90%;
+    margin: 10px auto;
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    box-sizing: border-box;
+}
+
+/* Estilos de la lista de configuración */
+.lista-oraciones {
+    text-align: left;
+    margin-bottom: 20px;
+}
+
+.lista-oraciones h4 {
+    margin: 15px 0 5px 0;
+    color: #2196F3;
+    font-size: 18px;
+    border-bottom: 2px solid #e0e0e0; /* Una línea para separar categorías */
+    padding-bottom: 5px;
+}
+
+/* Usamos Flexbox para alinear perfectamente el checkbox y el texto */
+.lista-oraciones label {
+    display: flex;
+    align-items: center;
+    font-size: 16px;
+    margin: 8px 0;
+    cursor: pointer;
+    color: #333;
+}
+
+/* Estilo específico para los checkboxes para que no salten de línea */
+.lista-oraciones input[type="checkbox"] {
+    width: auto;
+    margin: 0 10px 0 0;
+    transform: scale(1.3); /* Hacemos el checkbox un poco más grande para que sea fácil de tocar en el celular */
+    cursor: pointer;
+}
+
+.btn-cerrar-modal {
+    background-color: #f44336;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-top: 10px;
+}
+.btn-cerrar-modal {
+    background-color: #f44336;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-top: 10px;
+}
+.lista-oraciones {
+    text-align: left;
+    margin-bottom: 20px;
+}
+.lista-oraciones h4 {
+    margin: 10px 0 5px 0;
+    color: #2196F3;
+}
+.lista-oraciones label {
+    display: block;
+    font-size: 14px;
+    margin: 5px 0;
+}
