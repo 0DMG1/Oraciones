@@ -93,3 +93,27 @@ body {
     border-radius: 8px;
     font-weight: bold;
 }
+/* Animación de carga */
+.loader {
+    border: 4px solid rgba(255, 255, 255, 0.3);
+    border-top: 4px solid white;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    animation: spin 1s linear infinite;
+    display: inline-block;
+    vertical-align: middle;
+    margin-left: 10px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Estilo para cuando el botón está desactivado */
+.btn-accion:disabled {
+    background-color: #90CAF9; /* Azul más clarito */
+    cursor: not-allowed;
+    transform: none;
+}

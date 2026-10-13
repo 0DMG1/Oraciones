@@ -80,22 +80,31 @@ btnRevisar.onclick = () => {
     const tarjetas = zonaRespuesta.querySelectorAll('.tarjeta');
     const respuestaUsuario = Array.from(tarjetas).map(t => t.textContent).join(' ');
     
-    // Comparamos contra la oración original
     if (respuestaUsuario === niveles[nivelActual]) {
         mensaje.textContent = "¡Excelente! 🎉";
         mensaje.style.color = "green";
         
+        // --- INICIO DEL EFECTO DE CARGA ---
+        const textoOriginal = btnRevisar.textContent; // Guardamos el texto "Revisar"
+        btnRevisar.innerHTML = 'Cargando <div class="loader"></div>'; // Cambiamos el texto y metemos el spinner
+        btnRevisar.disabled = true; // Desactivamos el botón para que no den doble clic
+        // --- FIN DEL EFECTO DE CARGA ---
+
         setTimeout(() => {
             nivelActual++;
             if (nivelActual < niveles.length) {
                 cargarNivel();
+                
+                // Restauramos el botón a su estado normal para el siguiente nivel
+                btnRevisar.textContent = textoOriginal;
+                btnRevisar.disabled = false;
             } else {
                 mensaje.textContent = "¡Terminaste todos los juegos! 🏆";
                 zonaRespuesta.innerHTML = '';
                 btnRevisar.style.display = 'none';
                 btnEscuchar.style.display = 'none';
             }
-        }, 1500);
+        }, 1500); // 1.5 segundos de espera
     } else {
         mensaje.textContent = "Inténtalo de nuevo 🤔";
         mensaje.style.color = "red";
