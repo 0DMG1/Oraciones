@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formar Oraciones - Minjares</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="game-container">
+        <h2>Ordena la oración</h2>
+        
+        <!-- Botón para que la aplicación lea la oración en voz alta -->
+        <button id="btn-escuchar" class="btn-icon">🔊 Escuchar la oración</button>
+        
+        <!-- Aquí se colocarán las tarjetas para formar la respuesta -->
+        <div id="zona-respuesta" class="zona-drop"></div>
+
+        <!-- Aquí aparecen las tarjetas desordenadas -->
+        <div id="zona-palabras" class="zona-drag"></div>
+
+        <button id="btn-revisar" class="btn-accion">Revisar</button>
+        <p id="mensaje"></p>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
