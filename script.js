@@ -86,36 +86,67 @@ function desordenarArreglo(arreglo) {
     return arreglo.sort(() => Math.random() - 0.5);
 }
 
-// --- 3. ARRANQUE DESDE LA NUBE ---
+// --- 3. ARRANQUE DESDE LA NUBE CON CACHÉ TEMPORAL (10 MINUTOS) ---
 async function inicializarJuego() {
-    // Si la maestra ya se logueó en esta sesión, mostramos el engrane
     if (sessionStorage.getItem('modoMaestra') === 'true') {
         document.getElementById('btn-engrane').style.display = 'block';
     } else {
         document.getElementById('btn-engrane').style.display = 'none';
     }
 
+    const CACHE_KEY = 'minjares_nube_cache';
+    const CACHE_TIME_KEY = 'minjares_nube_time';
+    const TIEMPO_EXPIRACION = 10 * 60 * 10000; // 10 minutos en milisegundos
+
+    const cacheGuardada = localStorage.getItem(CACHE_KEY);
+    const tiempoGuardado = localStorage.getItem(CACHE_TIME_KEY);
+    const ahora = Date.now();
+
+    // 1. Si los datos en caché tienen menos de 10 minutos, los usamos (0 peticiones a JSONBin)
+    if (cacheGuardada && tiempoGuardado && (ahora - tiempoGuardado < TIEMPO_EXPIRACION)) {
+        const datos = JSON.parse(cacheGuardada);
+        aplicarConfiguracion(datos.oracionesSeleccionadas, datos.limite);
+        return;
+    }
+
+    // 2. Si expiró o no existe, hacemos la petición a la nube
     try {
         const respuesta = await fetch(`${URL_NUBE}/latest`, {
             headers: { 'X-Master-Key': API_KEY }
         });
         
-        if (!respuesta.ok) throw new Error("Error en la conexión con la nube");
+        if (!respuesta.ok) {
+            const errorData = await respuesta.json();
+            throw new Error(errorData.message || "Error HTTP " + respuesta.status);
+        }
         
         const datosNube = await respuesta.json();
         const idsActivos = datosNube.record.oracionesSeleccionadas || [0,1,2];
-        limiteActual = datosNube.record.limite || 5;
-        
-        // Cargamos solo las oraciones que la maestra seleccionó
-        oracionesActivas = idsActivos.map(id => listaPlana[id]).filter(o => o !== undefined);
-        oracionesActivas = desordenarArreglo(oracionesActivas);
+        const limite = datosNube.record.limite || 5;
+
+        // Guardamos en memoria local
+        localStorage.setItem(CACHE_KEY, JSON.stringify({ oracionesSeleccionadas: idsActivos, limite: limite }));
+        localStorage.setItem(CACHE_TIME_KEY, ahora.toString());
+
+        aplicarConfiguracion(idsActivos, limite);
         
     } catch (error) {
         console.error("Error al cargar configuración:", error);
-        // Si falla el internet, cargamos 3 por defecto
-        oracionesActivas = desordenarArreglo(listaPlana.slice(0, 3));
+        // Si falla la red pero hay caché vieja, la usamos de respaldo
+        if (cacheGuardada) {
+            const datos = JSON.parse(cacheGuardada);
+            aplicarConfiguracion(datos.oracionesSeleccionadas, datos.limite);
+        } else {
+            aplicarConfiguracion([0, 1, 2], 5);
+        }
     }
+}
 
+// Función auxiliar para cargar el tablero
+function aplicarConfiguracion(idsActivos, limite) {
+    limiteActual = limite;
+    oracionesActivas = idsActivos.map(id => listaPlana[id]).filter(o => o !== undefined);
+    oracionesActivas = desordenarArreglo(oracionesActivas);
     nivelActual = 0;
     cargarNivel();
 }
@@ -308,7 +339,8 @@ document.getElementById('btn-guardar-config').onclick = async () => {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
-                'X-Master-Key': API_KEY
+                'X-Master-Key': API_KEY,
+                'X-Bin-Versioning': 'false' // Evita acumular versiones en el plan gratuito
             },
             body: JSON.stringify(configGlobal)
         });
@@ -316,8 +348,13 @@ document.getElementById('btn-guardar-config').onclick = async () => {
         if (!respuesta.ok) throw new Error("Fallo al guardar");
 
         alert("✅ ¡Configuración guardada! Todos los alumnos verán estos cambios al entrar.");
-        cerrarModales();
         
+        // Actualizamos su copia local directamente (sobrescribe la anterior)
+        localStorage.setItem('minjares_nube_cache', JSON.stringify(configGlobal));
+        localStorage.setItem('minjares_nube_time', Date.now().toString());
+        
+        cerrarModales();
+
         // Actualizamos las variables locales y recargamos el tablero
         limiteActual = limite;
         oracionesActivas = ids.map(id => listaPlana[id]).filter(o => o !== undefined);
