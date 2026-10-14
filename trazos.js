@@ -154,3 +154,24 @@ document.getElementById('btn-siguiente').onclick = () => {
     letraGuia.textContent = letras[indiceLetra];
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 };
+
+// Diccionario fonético para forzar la pronunciación correcta en español
+const pronunciacionLetras = {
+    'p': 'pe',
+    'm': 'eme',
+    'l': 'ele',
+    't': 'te',
+    's': 'ese',
+    'n': 'ene'
+};
+
+document.getElementById('btn-escuchar-letra').onclick = () => {
+    const letraActual = letras[indiceLetra];
+    
+    // Si la letra está en el diccionario, usa esa pronunciación. Si no, usa la letra normal.
+    const textoAEscuchar = pronunciacionLetras[letraActual] || letraActual;
+    
+    const utterance = new SpeechSynthesisUtterance(textoAEscuchar);
+    utterance.lang = 'es-MX'; // Forzamos acento de México
+    speechSynthesis.speak(utterance);
+};

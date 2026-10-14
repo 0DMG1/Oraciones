@@ -54,18 +54,23 @@ const vocabularioGlobal = [
     "sopa", "gigante", "Luis", "juega", "con", "pelota", "güero", "trabaja"
 ];
 
-// Aplanamos la base de datos para darle un ID numérico a cada oración
-const listaPlana = [];
-let idContador = 0;
-for (let cat in baseDeDatos) {
-    baseDeDatos[cat].forEach(oracion => {
-        listaPlana.push({ id: idContador++, oracion: oracion, categoria: cat });
-    });
-}
-
+let listaPlana = [];
 let oracionesActivas = [];
 let nivelActual = 0;
-let limiteActual = 5; // Valor por defecto
+let limiteActual = 5;
+
+// Función para unificar la base de datos con las frases que agregue la maestra
+function construirListaPlana(personalizadas = []) {
+    listaPlana = [];
+    for (let cat in baseDeDatos) {
+        baseDeDatos[cat].forEach(oracion => {
+            listaPlana.push({ oracion: oracion, categoria: cat, esPersonalizada: false });
+        });
+    }
+    personalizadas.forEach(oracion => {
+        listaPlana.push({ oracion: oracion, categoria: "Personalizadas", esPersonalizada: true });
+    });
+}
 
 // --- 2. CREDENCIALES Y CONFIGURACIÓN NUBE ---
 const CRED_USER = "WXVi"; 
@@ -82,11 +87,9 @@ const btnRevisar = document.getElementById('btn-revisar');
 const mensaje = document.getElementById('mensaje');
 const tituloCategoria = document.getElementById('titulo-categoria');
 
-function desordenarArreglo(arreglo) {
-    return arreglo.sort(() => Math.random() - 0.5);
-}
+function desordenarArreglo(arreglo) { return arreglo.sort(() => Math.random() - 0.5); }
 
-// --- 3. ARRANQUE DESDE LA NUBE CON CACHÉ TEMPORAL (10 MINUTOS) ---
+// --- ARRANQUE DESDE LA NUBE ---
 async function inicializarJuego() {
     if (sessionStorage.getItem('modoMaestra') === 'true') {
         document.getElementById('btn-engrane').style.display = 'block';
@@ -96,62 +99,57 @@ async function inicializarJuego() {
 
     const CACHE_KEY = 'minjares_nube_cache';
     const CACHE_TIME_KEY = 'minjares_nube_time';
-    const TIEMPO_EXPIRACION = 10 * 60 * 10000; // 10 minutos en milisegundos
+    const TIEMPO_EXPIRACION = 10 * 60 * 1000;
 
     const cacheGuardada = localStorage.getItem(CACHE_KEY);
     const tiempoGuardado = localStorage.getItem(CACHE_TIME_KEY);
     const ahora = Date.now();
 
-    // 1. Si los datos en caché tienen menos de 10 minutos, los usamos (0 peticiones a JSONBin)
     if (cacheGuardada && tiempoGuardado && (ahora - tiempoGuardado < TIEMPO_EXPIRACION)) {
         const datos = JSON.parse(cacheGuardada);
-        aplicarConfiguracion(datos.oracionesSeleccionadas, datos.limite);
+        aplicarConfiguracion(datos.oracionesSeleccionadas, datos.oracionesPersonalizadas || [], datos.limite);
         return;
     }
 
-    // 2. Si expiró o no existe, hacemos la petición a la nube
     try {
-        const respuesta = await fetch(`${URL_NUBE}/latest`, {
-            headers: { 'X-Master-Key': API_KEY }
-        });
-        
-        if (!respuesta.ok) {
-            const errorData = await respuesta.json();
-            throw new Error(errorData.message || "Error HTTP " + respuesta.status);
-        }
+        const respuesta = await fetch(`${URL_NUBE}/latest`, { headers: { 'X-Master-Key': API_KEY } });
+        if (!respuesta.ok) throw new Error("Error HTTP " + respuesta.status);
         
         const datosNube = await respuesta.json();
-        const idsActivos = datosNube.record.oracionesSeleccionadas || [0,1,2];
+        let idsActivos = datosNube.record.oracionesSeleccionadas || ["El papá Pepe", "La mamá Ema"];
+        const personalizadas = datosNube.record.oracionesPersonalizadas || [];
         const limite = datosNube.record.limite || 5;
 
-        // Guardamos en memoria local
-        localStorage.setItem(CACHE_KEY, JSON.stringify({ oracionesSeleccionadas: idsActivos, limite: limite }));
+        // MIGRACIÓN: Si la configuración vieja usaba números, los convierte a texto automáticamente
+        if (idsActivos.length > 0 && typeof idsActivos[0] === 'number') {
+            let temp = [];
+            for (let cat in baseDeDatos) { baseDeDatos[cat].forEach(o => temp.push(o)); }
+            idsActivos = idsActivos.map(id => temp[id]).filter(t => t !== undefined);
+        }
+
+        localStorage.setItem(CACHE_KEY, JSON.stringify({ oracionesSeleccionadas: idsActivos, oracionesPersonalizadas: personalizadas, limite: limite }));
         localStorage.setItem(CACHE_TIME_KEY, ahora.toString());
 
-        aplicarConfiguracion(idsActivos, limite);
-        
+        aplicarConfiguracion(idsActivos, personalizadas, limite);
     } catch (error) {
-        console.error("Error al cargar configuración:", error);
-        // Si falla la red pero hay caché vieja, la usamos de respaldo
         if (cacheGuardada) {
             const datos = JSON.parse(cacheGuardada);
-            aplicarConfiguracion(datos.oracionesSeleccionadas, datos.limite);
+            aplicarConfiguracion(datos.oracionesSeleccionadas, datos.oracionesPersonalizadas || [], datos.limite);
         } else {
-            aplicarConfiguracion([0, 1, 2], 5);
+            aplicarConfiguracion(["El papá Pepe", "La mamá Ema", "La nena Lulú"], [], 5);
         }
     }
 }
 
-// Función auxiliar para cargar el tablero
-function aplicarConfiguracion(idsActivos, limite) {
+function aplicarConfiguracion(textosActivos, personalizadas, limite) {
     limiteActual = limite;
-    oracionesActivas = idsActivos.map(id => listaPlana[id]).filter(o => o !== undefined);
+    construirListaPlana(personalizadas);
+    oracionesActivas = textosActivos.map(texto => listaPlana.find(o => o.oracion === texto)).filter(o => o !== undefined);
     oracionesActivas = desordenarArreglo(oracionesActivas);
     nivelActual = 0;
     cargarNivel();
 }
 
-// --- 4. LÓGICA DEL JUEGO ---
 function cargarNivel() {
     zonaRespuesta.innerHTML = '';
     zonaPalabras.innerHTML = '';
@@ -178,19 +176,14 @@ function cargarNivel() {
 }
 
 function moverTarjeta(tarjeta) {
-    if (tarjeta.parentElement.id === 'zona-palabras') {
-        zonaRespuesta.appendChild(tarjeta);
-    } else {
-        zonaPalabras.appendChild(tarjeta);
-    }
+    if (tarjeta.parentElement.id === 'zona-palabras') { zonaRespuesta.appendChild(tarjeta); } 
+    else { zonaPalabras.appendChild(tarjeta); }
 }
 
 btnRevisar.onclick = () => {
-    const tarjetas = zonaRespuesta.querySelectorAll('.tarjeta');
-    const respuestaUsuario = Array.from(tarjetas).map(t => t.textContent).join(' ');
-    const respuestaCorrecta = oracionesActivas[nivelActual].oracion;
+    const respuestaUsuario = Array.from(zonaRespuesta.querySelectorAll('.tarjeta')).map(t => t.textContent).join(' ');
     
-    if (respuestaUsuario === respuestaCorrecta) {
+    if (respuestaUsuario === oracionesActivas[nivelActual].oracion) {
         mensaje.textContent = "¡Excelente! 🎉";
         mensaje.style.color = "green";
         
@@ -206,8 +199,7 @@ btnRevisar.onclick = () => {
                 btnRevisar.disabled = false;
             } else {
                 mensaje.textContent = "¡Terminaste todos los juegos! 🏆";
-                zonaRespuesta.innerHTML = '';
-                zonaPalabras.innerHTML = '';
+                zonaRespuesta.innerHTML = ''; zonaPalabras.innerHTML = '';
                 btnRevisar.style.display = 'none';
                 document.getElementById('btn-escuchar').style.display = 'none';
             }
@@ -219,32 +211,22 @@ btnRevisar.onclick = () => {
 };
 
 document.getElementById('btn-escuchar').onclick = () => {
-    const oracion = oracionesActivas[nivelActual].oracion;
-    const utterance = new SpeechSynthesisUtterance(oracion);
+    const utterance = new SpeechSynthesisUtterance(oracionesActivas[nivelActual].oracion);
     utterance.lang = 'es-MX';
     speechSynthesis.speak(utterance);
 };
 
-// --- 5. MODALES Y SEGURIDAD ---
+// --- MODALES Y SEGURIDAD ---
 const modalLogin = document.getElementById('modal-login');
 const modalConfig = document.getElementById('modal-config');
 
-// Un truco por si los alumnos entran, el engrane está oculto.
-// Pero la maestra puede darle "Doble clic" al título para forzar el login.
-tituloCategoria.ondblclick = () => {
-    modalLogin.style.display = 'flex';
-};
-
-document.getElementById('btn-engrane').onclick = () => {
-    modalLogin.style.display = 'flex';
-};
+tituloCategoria.ondblclick = () => modalLogin.style.display = 'flex';
+document.getElementById('btn-engrane').onclick = () => modalLogin.style.display = 'flex';
 
 function cerrarModales() {
-    modalLogin.style.display = 'none';
-    modalConfig.style.display = 'none';
+    modalLogin.style.display = 'none'; modalConfig.style.display = 'none';
     document.getElementById('input-usuario').value = '';
     document.getElementById('input-password').value = '';
-    document.getElementById('msg-login').textContent = '';
 }
 
 document.getElementById('btn-entrar').onclick = () => {
@@ -257,20 +239,41 @@ document.getElementById('btn-entrar').onclick = () => {
         document.getElementById('btn-engrane').style.display = 'block';
         abrirPanelConfiguracion();
     } else {
-        document.getElementById('msg-login').textContent = "Usuario o contraseña incorrectos.";
+        document.getElementById('msg-login').textContent = "Credenciales incorrectas.";
     }
 };
 
-function abrirPanelConfiguracion() {
+// --- AGREGAR FRASE PERSONALIZADA DESDE EL PANEL ---
+document.getElementById('btn-agregar-oracion').onclick = () => {
+    const input = document.getElementById('input-nueva-oracion');
+    const nuevaFrase = input.value.trim();
+    if(!nuevaFrase) return;
+
+    if(listaPlana.some(o => o.oracion.toLowerCase() === nuevaFrase.toLowerCase())) {
+        alert("Esta oración ya existe en la lista.");
+        return;
+    }
+
+    // La agregamos a la memoria temporal
+    listaPlana.push({ oracion: nuevaFrase, categoria: "Personalizadas", esPersonalizada: true });
+    input.value = '';
+
+    // Obtenemos qué casillas estaban marcadas para no borrárselas al redibujar
+    const marcadas = Array.from(document.querySelectorAll('#lista-config-oraciones input[type="checkbox"]:checked')).map(cb => cb.value);
+    marcadas.push(nuevaFrase); // Autoseleccionamos la que acaba de crear
+
+    abrirPanelConfiguracion(marcadas);
+};
+
+function abrirPanelConfiguracion(seleccionesTemporales = null) {
     modalConfig.style.display = 'flex';
     const lista = document.getElementById('lista-config-oraciones');
     lista.innerHTML = '';
     
     const limiteInput = document.getElementById('input-limite');
-    limiteInput.value = limiteActual;
+    if(!seleccionesTemporales) limiteInput.value = limiteActual;
     
-    // Obtenemos los IDs actualmente activos para pre-marcar los checkboxes
-    const idsActivos = oracionesActivas.map(o => o.id);
+    const textosActivos = seleccionesTemporales || oracionesActivas.map(o => o.oracion);
 
     let categoriaActual = "";
     listaPlana.forEach(item => {
@@ -281,8 +284,8 @@ function abrirPanelConfiguracion() {
             lista.appendChild(titulo);
         }
         const label = document.createElement('label');
-        const estaSeleccionado = idsActivos.includes(item.id) ? 'checked' : '';
-        label.innerHTML = `<input type="checkbox" value="${item.id}" ${estaSeleccionado}> ${item.oracion}`;
+        const estaSeleccionado = textosActivos.includes(item.oracion) ? 'checked' : '';
+        label.innerHTML = `<input type="checkbox" value="${item.oracion}" ${estaSeleccionado}> ${item.oracion}`;
         lista.appendChild(label);
     });
 
@@ -295,17 +298,12 @@ function abrirPanelConfiguracion() {
         if (seleccionados.length > maximo) {
             let exceso = seleccionados.length - maximo;
             for (let i = seleccionados.length - 1; i >= 0 && exceso > 0; i--) {
-                seleccionados[i].checked = false;
-                exceso--;
+                seleccionados[i].checked = false; exceso--;
             }
             seleccionados = lista.querySelectorAll('input[type="checkbox"]:checked');
         }
 
-        todosLosCheckboxes.forEach(cb => {
-            if (!cb.checked) {
-                cb.disabled = (seleccionados.length >= maximo);
-            }
-        });
+        todosLosCheckboxes.forEach(cb => cb.disabled = (!cb.checked && seleccionados.length >= maximo));
     }
 
     limiteInput.addEventListener('input', validarLimites);
@@ -313,62 +311,48 @@ function abrirPanelConfiguracion() {
     validarLimites(); 
 }
 
-// --- 6. GUARDAR EN LA NUBE ---
 document.getElementById('btn-guardar-config').onclick = async () => {
     const seleccionados = document.querySelectorAll('#lista-config-oraciones input[type="checkbox"]:checked');
     const limite = parseInt(document.getElementById('input-limite').value) || 1;
 
     if (seleccionados.length === 0) {
-        alert("Debes seleccionar al menos una oración.");
-        return;
+        alert("Debes seleccionar al menos una oración."); return;
     }
     
-    const ids = Array.from(seleccionados).map(cb => Number(cb.value));
-    
+    const textosSeleccionados = Array.from(seleccionados).map(cb => cb.value);
+    const personalizadas = listaPlana.filter(item => item.esPersonalizada).map(item => item.oracion);
+
     const configGlobal = {
         limite: limite,
-        oracionesSeleccionadas: ids
+        oracionesSeleccionadas: textosSeleccionados,
+        oracionesPersonalizadas: personalizadas
     };
 
     const btnGuardar = document.getElementById('btn-guardar-config');
-    btnGuardar.textContent = "Guardando en la nube... ☁️";
+    btnGuardar.textContent = "Guardando... ☁️";
     btnGuardar.disabled = true;
 
     try {
         const respuesta = await fetch(URL_NUBE, {
             method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Master-Key': API_KEY,
-                'X-Bin-Versioning': 'false' // Evita acumular versiones en el plan gratuito
-            },
+            headers: { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY, 'X-Bin-Versioning': 'false' },
             body: JSON.stringify(configGlobal)
         });
 
         if (!respuesta.ok) throw new Error("Fallo al guardar");
 
-        alert("✅ ¡Configuración guardada! Todos los alumnos verán estos cambios al entrar.");
-        
-        // Actualizamos su copia local directamente (sobrescribe la anterior)
+        alert("✅ ¡Configuración guardada!");
         localStorage.setItem('minjares_nube_cache', JSON.stringify(configGlobal));
         localStorage.setItem('minjares_nube_time', Date.now().toString());
-        
         cerrarModales();
 
-        // Actualizamos las variables locales y recargamos el tablero
-        limiteActual = limite;
-        oracionesActivas = ids.map(id => listaPlana[id]).filter(o => o !== undefined);
-        oracionesActivas = desordenarArreglo(oracionesActivas);
-        nivelActual = 0;
-        cargarNivel();
-        
+        aplicarConfiguracion(textosSeleccionados, personalizadas, limite);
     } catch (error) {
-        alert("❌ Hubo un error al guardar. Revisa el BIN_ID y API_KEY.");
+        alert("❌ Hubo un error al guardar.");
     } finally {
         btnGuardar.textContent = "Guardar y Actualizar a Todos";
         btnGuardar.disabled = false;
     }
 };
 
-// Iniciar
 inicializarJuego();
